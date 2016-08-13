@@ -11,8 +11,8 @@ import Foundation
 public class Agent {
 
   public typealias Headers = Dictionary<String, String>
-  public typealias Response = (NSHTTPURLResponse?, AnyObject?, NSError?) -> Void
-  public typealias RawResponse = (NSHTTPURLResponse?, NSData?, NSError?) -> Void
+  public typealias Response = (AnyObject?, URLResponse?, NSError?) -> Void
+  public typealias RawResponse = (Data?, URLResponse?, NSError?) -> Void
 
   /**
    * Members
@@ -21,7 +21,7 @@ public class Agent {
   var base: NSURL?
   var headers: Dictionary<String, String>?
   var request: NSMutableURLRequest?
-  let queue = NSOperationQueue()
+  let queue = OperationQueue()
 
   /**
    * Initialize
@@ -38,7 +38,7 @@ public class Agent {
 
   init(method: String, url: String, headers: Dictionary<String, String>?) {
     self.headers = headers
-    self.request(method, path: url)
+    _ = self.request(method: method, path: url)
   }
   
   convenience init(method: String, url: String) {
@@ -52,13 +52,13 @@ public class Agent {
   func request(method: String, path: String) -> Agent {
     var u: NSURL
     if self.base != nil {
-      u = self.base!.URLByAppendingPathComponent(path)
+      u = self.base!.appendingPathComponent(path)!
     } else {
       u = NSURL(string: path)!
     }
 
-    self.request = NSMutableURLRequest(URL: u)
-    self.request!.HTTPMethod = method
+    self.request = NSMutableURLRequest(url: u as URL)
+    self.request!.httpMethod = method
     
     if self.headers != nil {
       self.request!.allHTTPHeaderFields = self.headers
@@ -80,15 +80,15 @@ public class Agent {
   }
 
   public class func get(url: String, done: Response) -> Agent {
-    return Agent.get(url).end(done)
+    return Agent.get(url: url).end(done: done)
   }
 
   public class func get(url: String, headers: Headers, done: Response) -> Agent {
-    return Agent.get(url, headers: headers).end(done)
+    return Agent.get(url: url, headers: headers).end(done: done)
   }
   
   public func get(url: String, done: Response) -> Agent {
-    return self.request("GET", path: url).end(done)
+    return self.request(method: "GET", path: url).end(done: done)
   }
 
   /**
@@ -104,27 +104,27 @@ public class Agent {
   }
 
   public class func post(url: String, done: Response) -> Agent {
-    return Agent.post(url).end(done)
+    return Agent.post(url: url).end(done: done)
   }
 
   public class func post(url: String, headers: Headers, data: AnyObject) -> Agent {
-    return Agent.post(url, headers: headers).send(data)
+    return Agent.post(url: url, headers: headers).send(data: data)
   }
 
   public class func post(url: String, data: AnyObject) -> Agent {
-    return Agent.post(url).send(data)
+    return Agent.post(url: url).send(data: data)
   }
 
   public class func post(url: String, data: AnyObject, done: Response) -> Agent {
-    return Agent.post(url, data: data).send(data).end(done)
+    return Agent.post(url: url, data: data).send(data: data).end(done: done)
   }
 
   public class func post(url: String, headers: Headers, data: AnyObject, done: Response) -> Agent {
-    return Agent.post(url, headers: headers, data: data).send(data).end(done)
+    return Agent.post(url: url, headers: headers, data: data).send(data: data).end(done: done)
   }
 
   public func POST(url: String, data: AnyObject, done: Response) -> Agent {
-    return self.request("POST", path: url).send(data).end(done)
+    return self.request(method: "POST", path: url).send(data: data).end(done: done)
   }
 
   /**
@@ -140,27 +140,27 @@ public class Agent {
   }
 
   public class func put(url: String, done: Response) -> Agent {
-    return Agent.put(url).end(done)
+    return Agent.put(url: url).end(done: done)
   }
 
   public class func put(url: String, headers: Headers, data: AnyObject) -> Agent {
-      return Agent.put(url, headers: headers).send(data)
+    return Agent.put(url: url, headers: headers).send(data: data)
   }
 
   public class func put(url: String, data: AnyObject) -> Agent {
-    return Agent.put(url).send(data)
+    return Agent.put(url: url).send(data: data)
   }
 
   public class func put(url: String, data: AnyObject, done: Response) -> Agent {
-    return Agent.put(url, data: data).send(data).end(done)
+    return Agent.put(url: url, data: data).send(data: data).end(done: done)
   }
 
   public class func put(url: String, headers: Headers, data: AnyObject, done: Response) -> Agent {
-    return Agent.put(url, headers: headers, data: data).send(data).end(done)
+    return Agent.put(url: url, headers: headers, data: data).send(data: data).end(done: done)
   }
   
   public func PUT(url: String, data: AnyObject, done: Response) -> Agent {
-    return self.request("PUT", path: url).send(data).end(done)
+    return self.request(method: "PUT", path: url).send(data: data).end(done: done)
   }
 
   /**
@@ -176,15 +176,15 @@ public class Agent {
   }
 
   public class func delete(url: String, done: Response) -> Agent {
-    return Agent.delete(url).end(done)
+    return Agent.delete(url: url).end(done: done)
   }
 
   public class func delete(url: String, headers: Headers, done: Response) -> Agent {
-    return Agent.delete(url, headers: headers).end(done)
+    return Agent.delete(url: url, headers: headers).end(done: done)
   }
 
   public func delete(url: String, done: Response) -> Agent {
-    return self.request("DELETE", path: url).end(done)
+    return self.request(method: "DELETE", path: url).end(done: done)
   }
 
   /**
@@ -192,15 +192,14 @@ public class Agent {
    */
 
   public func data(data: NSData?, mime: String) -> Agent {
-    self.set("Content-Type", value: mime)
-    self.request!.HTTPBody = data
+    _ = self.set(header:"Content-Type", value: mime)
+    self.request!.httpBody = data as? Data
     return self
   }
   
   public func send(data: AnyObject) -> Agent {
-    var error: NSError?
-    let json = NSJSONSerialization.dataWithJSONObject(data, options: nil, error: &error)
-    return self.data(json, mime: "application/json")
+    let json = try! JSONSerialization.data(withJSONObject: data, options: [])
+    return self.data(data: json, mime: "application/json")
   }
 
   public func set(header: String, value: String) -> Agent {
@@ -209,33 +208,54 @@ public class Agent {
   }
 
   public func end(done: Response) -> Agent {
-    let completion = { (response: NSURLResponse!, data: NSData!, error: NSError!) -> Void in
-      if error != .None {
-        done(.None, data, error)
+    let completion = { (data:Data?, response:URLResponse?, error:NSError?) -> Void in
+      if error != .none {
+        done(data, .none, error)
         return
       }
-      var error: NSError?
+
       var json: AnyObject!
-      if data != .None {
-        json = NSJSONSerialization.JSONObjectWithData(data, options: nil, error: &error)
+      if data != .none {
+        json = try? JSONSerialization.data(withJSONObject: data!)
       }
-      let res = response as! NSHTTPURLResponse
-      done(res, json, error)
+      let res = response as! HTTPURLResponse
+      done(json, res, nil)
     }
-    NSURLConnection.sendAsynchronousRequest(self.request!, queue: self.queue, completionHandler: completion)
+    let task =  URLSession.shared().dataTask(with:self.request! as URLRequest, completionHandler:completion)
+    task.resume()
     return self
   }
   
   public func raw(done: RawResponse) -> Agent {
-    let completion = { (response: NSURLResponse!, data: NSData!, error: NSError!) -> Void in
-      if error != .None {
-        done(.None, data, error)
+    let completion = { (data:Data?, response:URLResponse?, error:NSError?) -> Void in
+      if error != .none {
+        done(data, .none, error)
         return
       }
-      done(response as? NSHTTPURLResponse, data, error)
+      done(data, response as? HTTPURLResponse, error)
     }
-    NSURLConnection.sendAsynchronousRequest(self.request!, queue: self.queue, completionHandler: completion)
+    let task =  URLSession.shared().dataTask(with:self.request! as URLRequest, completionHandler:completion)
+    task.resume()
     return self
   }
+    
+    public func json(done:Response) -> Agent {
+        let completion = { (data:Data?, response:URLResponse?, error:NSError?) -> Void in
+            if error != .none {
+                done(data, .none, error)
+                return
+            }
+            var json: AnyObject!
+            
+            if data != .none {
+                json = try? JSONSerialization.jsonObject(with: data!)
+            }
+            let res = response as! HTTPURLResponse
+            done(json, res, nil)
+        }
+        let task =  URLSession.shared().dataTask(with:self.request! as URLRequest, completionHandler:completion)
+        task.resume()
+        return self
+    }
 
 }
